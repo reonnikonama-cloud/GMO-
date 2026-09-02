@@ -4,7 +4,7 @@ import asyncio
 from typing import Dict, Any
 
 class DiscordNotifier:
-    """Discord Webhook による通知管理 (429 Rate Limit 対応)"""
+    """Discord Webhook による通知管理 (Render共有IP 429制限 対応版)"""
     def __init__(self):
         self.webhook_url = os.getenv("DISCORD_WEBHOOK_URL", "")
 
@@ -35,20 +35,31 @@ class DiscordNotifier:
         payload = {"content": f"⚠️ **[SYSTEM ALERT] 障害検知**\n```{error_msg}```"}
         await self._post(payload)
 
-    async def _post(self, payload: Dict[str, Any]):
+    async def _post(self, payload: Dict[str, Any], max_retries: int = 3):
         async with aiohttp.ClientSession() as session:
-            try:
-                async with session.post(self.webhook_url, json=payload) as resp:
-                    if resp.status == 429:
-                        # Discordから指定された待機時間を取得してリトライ
-                        resp_json = await resp.json()
-                        retry_after = resp_json.get("retry_after", 1.0)
-                        print(f"[Discord] Rate limited (429). Retrying after {retry_after} seconds...")
-                        await asyncio.sleep(retry_after)
-                        async with session.post(self.webhook_url, json=payload) as retry_resp:
-                            if retry_resp.status not in (200, 204):
-                                print(f"[Discord Error] Retry Status: {retry_resp.status}")
-                    elif resp.status not in (200, 204):
-                        print(f"[Discord Error] Status: {resp.status}")
-            except Exception as e:
-                print(f"[Discord Connection Error] {e}")
+            for attempt in range(max_retries):
+                try:
+                    async with session.post(self.webhook_url, json=payload) as resp:
+                        # 成功した場合は即終了
+                        if resp.status in (200, 204):
+                            return
+                        
+                        # 429エラーの場合
+                        if resp.status == 429:
+                            # HTTPヘッダーからリセットまでの秒数を取得 (デフォルト5秒)
+                            retry_after = float(
+                                resp.headers.get("x-ratelimit-reset-after", 
+                                resp.headers.get("retry-after", 5.0))
+                            )
+                            wait_time = retry_after + 1.0  # 安全のため1秒追加
+                            print(f"[Discord] 429 Rate limited. Attempt {attempt+1}/{max_retries}. Waiting {wait_time}s...")
+                            await asyncio.sleep(wait_time)
+                            continue
+                        
+                        # その他のエラー
+                        print(f"[Discord Error] Unhandled Status: {resp.status}")
+                        return
+                        
+                except Exception as e:
+                    print(f"[Discord Connection Error] {e}")
+                    await asyncio.sleep(2.0)

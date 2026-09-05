@@ -16,7 +16,7 @@ class CapitalGate:
         try:
             assets_res = await client.get_assets()
             if assets_res.get("status") != 0:
-                logger.warning(f"Capital Gate: Failed to fetch assets -> Operating in PAPER mode.")
+                logger.warning("Capital Gate: Failed to fetch assets -> Operating in PAPER mode.")
                 return "PAPER"
 
             jpy_amount = 0.0
@@ -35,6 +35,6 @@ class CapitalGate:
                     f"Target not reached -> Mode: PAPER (Virtual Execution)"
                 )
                 return "PAPER"
-            except Exception as e:
+        except Exception as e:
             logger.error(f"Capital Gate Exception: {e} -> Operating in PAPER mode.")
             return "PAPER"

@@ -10,15 +10,19 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     python3-venv \
     python3-dev \
+    ca-certificates \
+    git \
     && rm -rf /var/lib/apt/lists/*
+
+ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL=git
+ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
 
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 RUN pip install --no-cache-dir maturin
 
-COPY Cargo.toml Cargo.lock* pyproject.toml* ./
-# rust_src ディレクトリを Cargo 標準の src としてコピー
+COPY Cargo.toml Cargo.lock* pyproject.toml ./
 COPY rust_src ./src
 
 RUN maturin build --release --out dist

@@ -16,7 +16,6 @@ RUN apt-get update && apt-get install -y \
 
 ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL=git
 ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
-# Python 3.13 環境での PyO3 ビルドエラーを回避
 ENV PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1
 
 RUN python3 -m venv /opt/venv
@@ -32,7 +31,7 @@ RUN maturin build --release --out dist
 # ==========================================
 # Stage 2: Python Runtime
 # ==========================================
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 WORKDIR /app
 
